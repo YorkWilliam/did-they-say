@@ -1,20 +1,56 @@
 from flask import Flask, render_template, request, jsonify, Response
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
-from datetime import timedelta
+from datetime import timedelta, datetime
 from dotenv import load_dotenv
 import json
 import os
+import time
 
 app = Flask(__name__)
 load_dotenv()
 
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
+CACHE_DIR = 'cache'
+
+class TranscriptCache:
+    def __init__(self):
+        self.cache_dir = CACHE_DIR
+        os.makedirs(self.cache_dir, exist_ok=True)
+        
+    def _get_cache_path(self, channel_id):
+        return os.path.join(self.cache_dir, f'{channel_id}.json')
+        
+    def get_channel_cache(self, channel_id):
+        cache_path = self._get_cache_path(channel_id)
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+                return cache_data
+            except:
+                return {'videos': {}}
+        return {'videos': {}}
+        
+    def save_channel_cache(self, channel_id, cache_data):
+        cache_path = self._get_cache_path(channel_id)
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump(cache_data, f, ensure_ascii=False, indent=2)
+            
+    def get_video_transcript(self, channel_id, video_id):
+        cache_data = self.get_channel_cache(channel_id)
+        return cache_data['videos'].get(video_id)
+        
+    def save_video_transcript(self, channel_id, video_id, video_data):
+        cache_data = self.get_channel_cache(channel_id)
+        cache_data['videos'][video_id] = video_data
+        self.save_channel_cache(channel_id, cache_data)
 
 class YouTubeSearcher:
     def __init__(self, api_key):
         self.youtube = build('youtube', 'v3', developerKey=api_key)
         self.language_codes = ['en', 'en-GB', 'en-US']
+        self.cache = TranscriptCache()
 
     def generate_results(self, handle, term):
         try:
@@ -36,18 +72,26 @@ class YouTubeSearcher:
 
             videos_processed = 0
             matches_found = 0
+            cache_hits = 0
             
             for video in self.get_videos_iterator(channel_id):
                 videos_processed += 1
                 
-                if videos_processed % 10 == 0:
-                    yield json.dumps({
-                        'type': 'progress',
-                        'videos_processed': videos_processed,
-                        'matches_found': matches_found
-                    }) + '\n'
+                yield json.dumps({
+                    'type': 'progress',
+                    'videos_processed': videos_processed,
+                    'matches_found': matches_found,
+                    'cache_hits': cache_hits
+                }) + '\n'
 
-                result = self.search_video_transcript(video, term)
+                # Check cache first
+                cached_video = self.cache.get_video_transcript(channel_id, video['id'])
+                if cached_video:
+                    cache_hits += 1
+                    result = self.search_cached_transcript(cached_video, term)
+                else:
+                    result = self.search_video_transcript(channel_id, video, term)
+                
                 if result:
                     matches_found += 1
                     yield json.dumps({
@@ -58,7 +102,8 @@ class YouTubeSearcher:
             yield json.dumps({
                 'type': 'complete',
                 'videos_processed': videos_processed,
-                'matches_found': matches_found
+                'matches_found': matches_found,
+                'cache_hits': cache_hits
             }) + '\n'
 
         except Exception as e:
@@ -146,11 +191,39 @@ class YouTubeSearcher:
         except Exception:
             return None
 
-    def search_video_transcript(self, video, search_term):
+    def search_cached_transcript(self, video_data, search_term):
+        matches = []
+        for entry in video_data['transcript']:
+            if search_term.lower() in entry['text'].lower():
+                matches.append({
+                    'text': entry['text'],
+                    'timestamp': entry['start'],
+                    'timestamp_formatted': self._format_timestamp(entry['start'])
+                })
+        
+        if matches:
+            return {
+                'video_id': video_data['video_id'],
+                'title': video_data['title'],
+                'published_at': video_data['published_at'],
+                'matches': matches
+            }
+        return None
+
+    def search_video_transcript(self, channel_id, video, search_term):
         try:
             transcript = self._get_transcript(video['id'])
             if not transcript:
                 return None
+
+            # Save to cache
+            video_data = {
+                'video_id': video['id'],
+                'title': video['title'],
+                'published_at': video['published_at'],
+                'transcript': transcript
+            }
+            self.cache.save_video_transcript(channel_id, video['id'], video_data)
 
             matches = []
             for entry in transcript:

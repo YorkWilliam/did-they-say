@@ -2,3 +2,4 @@ public/.env
 public/venv/
 public/__pycache__/
 public/did-they-say.sock
+public/cache/
