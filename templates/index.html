@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Did They Say?</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+    <h1>YouTube Transcript Search</h1>
+    <div class="search-container">
+        <div class="input-phrase">
+            Did
+            <input 
+                type="text" 
+                id="handle" 
+                placeholder="@channelname"
+                autocomplete="off">
+            Say
+            <input 
+                type="text" 
+                id="term" 
+                placeholder="something"
+                autocomplete="off">
+            ?
+            <button onclick="search()" id="searchBtn">Search</button>
+        </div>
+    </div>
+    <div id="progress" class="progress" style="display: none;">
+        <div>Videos processed: <span id="videosCount">0</span></div>
+        <div>Matches found: <span id="matchesCount">0</span></div>
+    </div>
+    <div id="results" class="results"></div>
+
+    <script>
+        const searchBtn = document.getElementById('searchBtn');
+        const resultsDiv = document.getElementById('results');
+        const progressDiv = document.getElementById('progress');
+        const videosCountSpan = document.getElementById('videosCount');
+        const matchesCountSpan = document.getElementById('matchesCount');
+
+        async function search() {
+            const handle = document.getElementById('handle').value.trim();
+            const term = document.getElementById('term').value.trim();
+
+            if (!handle || !term) return;
+
+            searchBtn.disabled = true;
+            resultsDiv.innerHTML = '';
+            progressDiv.style.display = 'block';
+            videosCountSpan.textContent = '0';
+            matchesCountSpan.textContent = '0';
+
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ handle, term })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            processServerMessage(JSON.parse(line));
+                        }
+                    }
+                }
+
+                if (buffer.trim()) {
+                    processServerMessage(JSON.parse(buffer));
+                }
+
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        An error occurred while searching. Please try again.
+                    </div>
+                `;
+            } finally {
+                searchBtn.disabled = false;
+            }
+        }
+
+        function processServerMessage(message) {
+            switch (message.type) {
+                case 'error':
+                    resultsDiv.innerHTML = `<div class="error">${message.error}</div>`;
+                    progressDiv.style.display = 'none';
+                    break;
+
+                case 'progress':
+                    videosCountSpan.textContent = message.videos_processed;
+                    matchesCountSpan.textContent = message.matches_found;
+                    break;
+
+                case 'match':
+                    addVideoResult(message.data);
+                    break;
+
+                case 'complete':
+                    if (message.matches_found === 0) {
+                        resultsDiv.innerHTML = '<div class="video">No matches found</div>';
+                    }
+                    break;
+            }
+        }
+
+        function addVideoResult(video) {
+            const videoElement = document.createElement('div');
+            videoElement.className = 'video expanded';
+
+            const date = new Date(video.published_at).toLocaleDateString();
+
+            videoElement.innerHTML = `
+                <div class="video-header" onclick="toggleVideo(this.parentElement)">
+                    <div class="arrow"></div>
+                    <h3>${video.title}</h3>
+                    <div class="video-meta">
+                        ${date}
+                        <span class="matches-count">${video.matches.length} matches</span>
+                    </div>
+                </div>
+                <div class="video-content">
+                    ${video.matches.map(match => `
+                        <div class="match">
+                            <p>${match.text}</p>
+                            <a 
+                                href="https://youtube.com/watch?v=${video.video_id}&t=${Math.floor(match.timestamp)}" 
+                                class="timestamp"
+                                target="_blank"
+                            >
+                                Watch at ${match.timestamp_formatted}
+                            </a>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            resultsDiv.appendChild(videoElement);
+        }
+
+        function toggleVideo(videoElement) {
+            videoElement.classList.toggle('expanded');
+        }
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') search();
+            });
+        });
+    </script>
+</body>
+
+</html>
