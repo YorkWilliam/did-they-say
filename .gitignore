@@ -1,4 +1,6 @@
 public/.env
+public/client_secrets.json
+public/token.pickle
 public/venv/
 public/__pycache__/
 public/did-they-say.sock

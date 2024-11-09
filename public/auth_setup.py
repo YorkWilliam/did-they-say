@@ -1,4 +1,4 @@
-from youtubesearcher import YouTubeSearcher  # Import your searcher class
+from app import YouTubeSearcher  # Import your searcher class
 
 def setup_auth():
     print("Starting authentication setup...")
