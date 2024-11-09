@@ -7,7 +7,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/did-they-say.yinong.me/public
 Environment="/var/www/did-they-say.yinong.me/public/venv/bin"
-ExecStart=/var/www/did-they-say.yinong.me/public/venv/bin/gunicorn --workers 3 --bind unix:did-they-say.sock -m 007 wsgi:app
+ExecStart=/var/www/did-they-say.yinong.me/public/venv/bin/gunicorn --workers 3 --bind unix:did-they-say.sock -m 007 --timeout 300 wsgi:app
 
 [Install]
 WantedBy=multi-user.target

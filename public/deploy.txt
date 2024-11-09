@@ -20,3 +20,12 @@ ufw allow 'Nginx Full'
 certbot --nginx -d did-they-say.yinong.me
 chown www-data:www-data public/did-they-say.sock 
 systemctl restart nginx
+
+# try deployment
+ufw allow 5000
+source venv/bin/activate
+gunicorn --bind 0.0.0.0:5000 wsgi:app
+# open ip:5000 to try
+# after trial
+deactivate
+ufw delete allow 5000
