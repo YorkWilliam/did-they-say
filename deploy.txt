@@ -1,0 +1,14 @@
+# set up app
+create .env
+
+# set up python
+sudo apt update
+sudo apt install python3 python3-pip python3-venv
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+deactivate
+
+# run app
+gunicorn --worker-class=gevent --timeout 300 app:app
