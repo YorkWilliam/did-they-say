@@ -3,7 +3,7 @@
 
 # set up python
 sudo apt update
-sudo apt install python3 python3-pip python3-venv
+apt install python3 python3-pip python3-venv
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
@@ -12,6 +12,11 @@ deactivate
 
 # run app
 cp did-they-say.service /etc/systemd/system/
+systemctl daemon-reload
 systemctl start did-they-say
 systemctl enable did-they-say
+systemctl status did-they-say
+ufw allow 'Nginx Full'
+certbot --nginx -d did-they-say.yinong.me
+chown www-data:www-data public/did-they-say.sock 
 systemctl restart nginx
