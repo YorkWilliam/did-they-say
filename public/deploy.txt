@@ -1,5 +1,5 @@
 # set up app
-create .env
+# create .env
 
 # set up python
 sudo apt update
@@ -11,4 +11,7 @@ pip install -r requirements.txt
 deactivate
 
 # run app
-gunicorn --worker-class=gevent --timeout 300 app:app
+cp did-they-say.service /etc/systemd/system/
+systemctl start did-they-say
+systemctl enable did-they-say
+systemctl restart nginx
