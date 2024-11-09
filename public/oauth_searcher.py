@@ -41,16 +41,28 @@ class OAuthYouTubeSearcher(YouTubeSearcherBase):
         if not handle.startswith('@'):
             handle = '@' + handle
             
+        # Get cached videos to check channel ID
+        cached_data = self.cache.get_channel_cache(handle)
+        if cached_data.get('channel_id'):
+            return cached_data['channel_id']
+            
+        # If not in cache, fetch from API
         request = self.youtube.channels().list(
             part="id",
             forHandle=handle[1:]
         )
         response = request.execute()
-        
+
         if not response['items']:
             raise ValueError(f"No channel found for handle {handle}")
+        
+        channel_id = response['items'][0]['id']
+        
+        # Save channel ID to cache
+        cached_data['channel_id'] = channel_id
+        self.cache.save_channel_cache(handle, cached_data)
             
-        return response['items'][0]['id']
+        return channel_id
 
     def _get_transcript(self, video_id):
         try:
@@ -90,6 +102,7 @@ class OAuthYouTubeSearcher(YouTubeSearcherBase):
             time_obj = datetime.strptime(time_str, '%H:%M:%S,%f')
             return time_obj.hour * 3600 + time_obj.minute * 60 + time_obj.second + time_obj.microsecond / 1000000
 
+        seen_texts = set()  # Track unique texts to avoid duplicates
         transcript = []
         content = srt_content.decode('utf-8')
         subtitle_blocks = re.split('\n\n+', content.strip())
@@ -99,11 +112,14 @@ class OAuthYouTubeSearcher(YouTubeSearcherBase):
             if len(lines) >= 3:
                 timestamps = lines[1].split(' --> ')
                 start_time = time_to_seconds(timestamps[0])
-                text = ' '.join(lines[2:])
+                text = ' '.join(lines[2:]).strip()
                 
-                transcript.append({
-                    'text': text,
-                    'start': start_time
-                })
+                # Only add if we haven't seen this text before
+                if text not in seen_texts:
+                    transcript.append({
+                        'text': text,
+                        'start': start_time
+                    })
+                    seen_texts.add(text)
 
         return transcript

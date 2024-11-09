@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, Response
 # from api_key_searcher import APIKeyYouTubeSearcher # Uncomment to use API Key
 # from oauth_searcher import OAuthYouTubeSearcher  # Uncomment to use OAuth
-from scraper_searcher import ScraperYouTubeSearcher
+from scraper_searcher import ScraperYouTubeSearcher # Uncomment to use yt-dlp
 from dotenv import load_dotenv
 import os
 

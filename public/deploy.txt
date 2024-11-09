@@ -2,7 +2,7 @@
 # create .env
 
 # set up python
-sudo apt update
+apt update
 apt install python3 python3-pip python3-venv
 python3 -m venv venv
 source venv/bin/activate
@@ -22,10 +22,10 @@ chown www-data:www-data public/did-they-say.sock
 systemctl restart nginx
 
 # try deployment
-ufw allow 5000
+ufw allow 8000
 source venv/bin/activate
-gunicorn --bind 0.0.0.0:5000 wsgi:app
-# open ip:5000 to try
+gunicorn --bind 0.0.0.0:8000 --timeout 300 wsgi:app
+# open ip:8000 to try
 # after trial
 deactivate
-ufw delete allow 5000
+ufw delete allow 8000

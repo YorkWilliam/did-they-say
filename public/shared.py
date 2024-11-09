@@ -205,4 +205,6 @@ class YouTubeSearcherBase:
                 print(f"Error fetching videos: {str(e)}")
                 break
 
-        self.cache.save_channel_videos(channel_id, videos)
+        # Save to cache
+        if videos:
+            self.cache.save_channel_videos(channel_id, videos)

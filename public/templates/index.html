@@ -31,6 +31,7 @@
     <div id="progress" class="progress" style="display: none;">
         <div><span id="videosCount">0</span> videos have been processed.</div>
         <div>Matches have been found in <span id="matchesCount">0</span> of these videos.</div>
+        <div id="finished" style="display: none;">All videos have been scanned.</div>
     </div>
     <div id="results" class="results"></div>
 
@@ -40,6 +41,7 @@
         const progressDiv = document.getElementById('progress');
         const videosCountSpan = document.getElementById('videosCount');
         const matchesCountSpan = document.getElementById('matchesCount');
+        const finishedDiv = document.getElementById('finished');
 
         async function search() {
             const handle = document.getElementById('handle').value.trim();
@@ -90,6 +92,7 @@
                     </div>
                 `;
             } finally {
+                finishedDiv.style.display = 'block';
                 searchBtn.disabled = false;
             }
         }
