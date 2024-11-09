@@ -213,3 +213,17 @@ button:disabled {
     transform: rotate(-135deg);
     top: 10px;
 }
+
+.api-selector {
+    margin: 0px auto;
+    max-width: 600px;
+    text-align: center;
+    padding: 10px;
+}
+.api-selector label {
+    margin: 0 15px;
+    cursor: pointer;
+}
+.api-selector input[type="checkbox"] {
+    cursor: pointer;
+}

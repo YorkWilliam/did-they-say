@@ -9,7 +9,20 @@
 </head>
 
 <body>
-    <h1>YouTube Transcript Search</h1>
+    <h1>
+        YouTube Transcript Search
+        <span class="api-selector">
+            <label>
+                <input type="checkbox" id="oauth" name="api" checked> OAuth
+            </label>
+            <label>
+                <input type="checkbox" id="apikey" name="api"> API Key
+            </label>
+            <label>
+                <input type="checkbox" id="scraper" name="api"> Scraper
+            </label>
+        </span>
+    </h1>
     <div class="search-container">
         <div class="input-phrase">
             Did
@@ -33,15 +46,40 @@
         <div>Matches have been found in <span id="matchesCount">0</span> of these videos.</div>
         <div id="finished" style="display: none;">All videos have been scanned.</div>
     </div>
+    <div id="errors" class="error" style="display: none;"></div>
     <div id="results" class="results"></div>
 
     <script>
         const searchBtn = document.getElementById('searchBtn');
+        const errorsDiv = document.getElementById('errors');
         const resultsDiv = document.getElementById('results');
         const progressDiv = document.getElementById('progress');
         const videosCountSpan = document.getElementById('videosCount');
         const matchesCountSpan = document.getElementById('matchesCount');
         const finishedDiv = document.getElementById('finished');
+
+        // Handle checkbox behavior
+        const checkboxes = document.querySelectorAll('input[name="api"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    // Uncheck all other checkboxes
+                    checkboxes.forEach(cb => {
+                        if (cb !== this) cb.checked = false;
+                    });
+                } else {
+                    // If unchecking the last checked box, keep it checked
+                    if ([...checkboxes].every(cb => !cb.checked)) {
+                        this.checked = true;
+                    }
+                }
+            });
+        });
+
+        function getCurrentAPI() {
+            const checked = document.querySelector('input[name="api"]:checked');
+            return checked ? checked.id : 'oauth';
+        }
 
         async function search() {
             const handle = document.getElementById('handle').value.trim();
@@ -50,8 +88,11 @@
             if (!handle || !term) return;
 
             searchBtn.disabled = true;
+            errorsDiv.textContent = '';
+            errorsDiv.style.display = 'none';
             resultsDiv.innerHTML = '';
             progressDiv.style.display = 'block';
+            finishedDiv.style.display = 'none';
             videosCountSpan.textContent = '0';
             matchesCountSpan.textContent = '0';
 
@@ -59,7 +100,11 @@
                 const response = await fetch('/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ handle, term })
+                    body: JSON.stringify({ 
+                        handle, 
+                        term,
+                        type: getCurrentAPI()
+                    })
                 });
 
                 const reader = response.body.getReader();
@@ -86,11 +131,8 @@
                 }
 
             } catch (error) {
-                resultsDiv.innerHTML = `
-                    <div class="error">
-                        An error occurred while searching. Please try again.
-                    </div>
-                `;
+                errorsDiv.style.display = 'block';
+                errorsDiv.textContent = "There was an error processing your request. Please try again.";
             } finally {
                 finishedDiv.style.display = 'block';
                 searchBtn.disabled = false;
@@ -100,8 +142,8 @@
         function processServerMessage(message) {
             switch (message.type) {
                 case 'error':
-                    resultsDiv.innerHTML = `<div class="error">${message.error}</div>`;
-                    progressDiv.style.display = 'none';
+                    errorsDiv.style.display = 'block';
+                    errorsDiv.textContent = message.error;
                     break;
 
                 case 'progress':
@@ -159,7 +201,7 @@
             videoElement.classList.toggle('expanded');
         }
 
-        document.querySelectorAll('input').forEach(input => {
+        document.querySelectorAll('input[type="text"]').forEach(input => {
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') search();
             });
