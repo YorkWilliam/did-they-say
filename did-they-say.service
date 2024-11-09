@@ -1,0 +1,13 @@
+[Unit]
+Description=YouTube Transcription Saerch
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/did-they-say.yinong.me
+Environment="PATH=/var/www/did-they-say.yinong.me/venv/bin"
+ExecStart=/var/www/did-they-say.yinong.me/venv/bin/gunicorn --workers 3 --bind unix:flask_app.sock -m 007 app:app
+
+[Install]
+WantedBy=multi-user.target
