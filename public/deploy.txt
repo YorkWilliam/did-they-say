@@ -1,6 +1,12 @@
 # set up app
 # create .env
 
+# set privileges
+chown -R www-data:www-data .
+find . -type d -exec chmod 755 {} \;
+find . -type f -exec chmod 644 {} \;
+chmod 600 .env client_secrets.json token.pickle
+
 # set up python
 apt update
 apt install python3 python3-pip python3-venv
